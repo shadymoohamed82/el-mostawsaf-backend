@@ -1,17 +1,21 @@
 const { Pool } = require('pg');
-const logger = require('../utils/logger');
+const logger   = require('../utils/logger');
 
-const pool = new Pool({
-  host:     process.env.DB_HOST,
-  port:     parseInt(process.env.DB_PORT) || 5432,
-  database: process.env.DB_NAME,
-  user:     process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  max:      20,              // max connections in pool
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-  ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
-});
+const pool = new Pool(
+  process.env.DATABASE_URL
+    ? {
+        connectionString: process.env.DATABASE_URL,
+        ssl: { rejectUnauthorized: false },
+      }
+    : {
+        host:     process.env.DB_HOST,
+        port:     parseInt(process.env.DB_PORT) || 5432,
+        database: process.env.DB_NAME,
+        user:     process.env.DB_USER,
+        password: process.env.DB_PASSWORD,
+        ssl:      false,
+      }
+);
 
 pool.on('error', (err) => {
   logger.error('Unexpected DB pool error:', err);
