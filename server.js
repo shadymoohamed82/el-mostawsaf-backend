@@ -43,6 +43,19 @@ app.get('/health', (req, res) => {
 //   app.use('/api', require('./src/middleware/auth'), routes);
 app.use('/api', routes);
 
+// ─── Root Route ───────────────────────────────────────────────────
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Welcome to El-Mostawsaf API',
+    version: '1.0.0',
+    endpoints: {
+      health: '/health',
+      api: '/api',
+    },
+  });
+});
+
 // ─── 404 Handler ──────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({
