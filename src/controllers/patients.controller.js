@@ -36,4 +36,16 @@ const getPatientDetails = asyncHandler(async (req, res) => {
   return success(res, patient);
 });
 
-module.exports = { getPatients, getPatientDetails };
+const getPatientSummary = asyncHandler(async (req, res) => {
+  const { id: doctorId, role } = req.user;
+  const { id: patientId }      = req.params;
+
+  const summary = await runWithRLS(doctorId, role, async (client) => {
+    return queries.getPatientSummary(client, patientId);
+  });
+
+  if (!summary) return error(res, 'Patient not found', 404);
+  return success(res, summary);
+});
+
+module.exports = { getPatients, getPatientDetails, getPatientSummary };
