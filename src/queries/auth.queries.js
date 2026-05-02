@@ -1,4 +1,5 @@
-// ─── Register ─────────────────────────────────────────────────
+const bcrypt = require('bcryptjs');
+
 const createUser = async (client, data) => {
   const { full_name, email, phone, password, role, specialization_id } = data;
 
@@ -12,9 +13,9 @@ const createUser = async (client, data) => {
 
   const result = await client.query(sql, [
     full_name,
-    email,
+    email     || null,
     phone,
-    password, // الـ trigger هيشفره تلقائياً
+    password, // جاي محروق من الـ controller
     role,
     specialization_id || null,
   ]);
@@ -22,46 +23,38 @@ const createUser = async (client, data) => {
   return result.rows[0];
 };
 
-// ─── Login ────────────────────────────────────────────────────
-const findUserByEmail = async (client, email) => {
+const verifyPassword = async (client, emailOrPhone, password) => {
   const sql = `
     SELECT 
-      id, full_name, email, phone, 
-      password_hash, role, specialization_id,
+      id, full_name, email, phone, role,
+      password_hash, specialization_id,
       is_active, is_deleted
     FROM users
-    WHERE email = $1
+    WHERE (email = $1 OR phone = $1)
+      AND is_deleted = FALSE
+      AND is_active  = TRUE
   `;
 
-  const result = await client.query(sql, [email]);
-  return result.rows[0] || null;
+  const result = await client.query(sql, [emailOrPhone]);
+  const user   = result.rows[0];
+
+  if (!user) return null;
+
+  const isValid = await bcrypt.compare(password, user.password_hash);
+  if (!isValid) return null;
+
+  return user;
 };
 
-// ─── Verify Password ──────────────────────────────────────────
-const verifyPassword = async (client, email, password) => {
-  const sql = `
-    SELECT 
-      id, full_name, email, phone, role, 
-      specialization_id, is_active, is_deleted
-    FROM users
-    WHERE email       = $1
-      AND password_hash = crypt($2, password_hash)
-      AND is_deleted  = FALSE
-      AND is_active   = TRUE
-  `;
-
-  const result = await client.query(sql, [email, password]);
-  return result.rows[0] || null;
-};
-
-// ─── Check Email/Phone exists ─────────────────────────────────
 const checkUserExists = async (client, email, phone) => {
   const sql = `
     SELECT id FROM users
-    WHERE email = $1 OR phone = $2
+    WHERE phone = $1
+    ${email ? 'OR email = $2' : ''}
   `;
-  const result = await client.query(sql, [email, phone]);
+  const params = email ? [phone, email] : [phone];
+  const result = await client.query(sql, params);
   return result.rows.length > 0;
 };
 
-module.exports = { createUser, findUserByEmail, verifyPassword, checkUserExists };
+module.exports = { createUser, verifyPassword, checkUserExists };
