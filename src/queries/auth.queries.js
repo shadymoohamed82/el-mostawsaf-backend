@@ -6,16 +6,15 @@ const createUser = async (client, data) => {
   const sql = `
     INSERT INTO users 
       (full_name, email, phone, password_hash, role, specialization_id)
-    VALUES 
-      ($1, $2, $3, $4, $5, $6)
+    VALUES ($1, $2, $3, $4, $5, $6)
     RETURNING id, full_name, email, phone, role, created_at
   `;
 
   const result = await client.query(sql, [
     full_name,
-    email     || null,
+    email || null,
     phone,
-    password, // جاي محروق من الـ controller
+    password,
     role,
     specialization_id || null,
   ]);
@@ -37,7 +36,6 @@ const verifyPassword = async (client, emailOrPhone, password) => {
 
   const result = await client.query(sql, [emailOrPhone]);
   const user   = result.rows[0];
-
   if (!user) return null;
 
   const isValid = await bcrypt.compare(password, user.password_hash);
