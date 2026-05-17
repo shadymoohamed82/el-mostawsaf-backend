@@ -66,40 +66,35 @@ const getDoctorById = async (client, doctorId) => {
   return result.rows[0] || null;
 };
 
-// ─── 3. مواعيد الدكتور الفاضية ───────────────────────────────
 const getDoctorAvailableSlots = async (client, doctorId, date) => {
-  // جيب الـ availability بتاعت الدكتور لليوم ده
   const dayOfWeek = new Date(date).getDay();
 
+  // جيب الـ availability من الـ view
   const availSql = `
     SELECT start_time, end_time
-    FROM doctor_availability
-    WHERE doctor_id   = $1
+    FROM v_doctor_available_slots
+    WHERE doctor_id = $1
       AND day_of_week = $2
   `;
-
   const availResult = await client.query(availSql, [doctorId, dayOfWeek]);
-
-  if (!availResult.rows[0]) return []; // مفيش availability للدكتور ده النهارده
+  if (!availResult.rows[0]) return [];
 
   const { start_time, end_time } = availResult.rows[0];
 
-  // جيب المواعيد المحجوزة في اليوم ده
+  // جيب المواعيد المحجوزة من الـ view
   const bookedSql = `
-    SELECT appointment_time, duration_minutes
-    FROM appointments
-    WHERE doctor_id  = $1
-      AND appointment_time::date = $2::date
-      AND status    != 'cancelled'
+    SELECT booked_from, booked_until
+    FROM v_doctor_booked_times
+    WHERE doctor_id = $1
+      AND booked_from::date = $2::date
   `;
-
   const bookedResult = await client.query(bookedSql, [doctorId, date]);
-  const booked       = bookedResult.rows;
+  const booked = bookedResult.rows;
 
   // اعمل slots كل 30 دقيقة
-  const slots      = [];
+  const slots = [];
   const slotDuration = 30;
-  const dateStr    = date.split('T')[0];
+  const dateStr = date.split('T')[0];
 
   let current = new Date(`${dateStr}T${start_time}`);
   const end   = new Date(`${dateStr}T${end_time}`);
@@ -108,18 +103,15 @@ const getDoctorAvailableSlots = async (client, doctorId, date) => {
     const slotEnd = new Date(current.getTime() + slotDuration * 60000);
     if (slotEnd > end) break;
 
-    // تأكد إن الـ slot في المستقبل
     const isInFuture = current > new Date();
-
-    // تأكد إن الـ slot مش محجوز
-    const isBooked = booked.some(b => {
-      const bStart = new Date(b.appointment_time);
-      const bEnd   = new Date(bStart.getTime() + b.duration_minutes * 60000);
+    const isBooked   = booked.some(b => {
+      const bStart = new Date(b.booked_from);
+      const bEnd   = new Date(b.booked_until);
       return current < bEnd && slotEnd > bStart;
     });
 
     slots.push({
-      time:      current.toISOString(),
+      time:       current.toISOString(),
       time_label: current.toLocaleTimeString('en-US', {
         hour: '2-digit', minute: '2-digit', hour12: true
       }),
