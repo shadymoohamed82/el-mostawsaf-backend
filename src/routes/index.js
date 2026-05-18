@@ -16,5 +16,6 @@ router.use('/patients',      auth, rls, require('./patients.routes'));
 router.use('/settings',      auth, rls, require('./settings.routes'));
 router.use('/notifications', auth, rls, require('./notifications.routes'));
 router.use('/records',       auth, rls, require('./medical_records.routes'));
+router.use('/admin',         auth, rls, require('./admin.routes'));
 
 module.exports = router;
